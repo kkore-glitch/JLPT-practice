@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <link rel="manifest" href="./manifest.json">
+  <title>日檢自修室</title>
+  <style>
+    :root {
+      --bg-color: #121212;
+      --text-color: #FF82B2;
+      --border-color: #FF82B2;
+      --btn-bg: #1a0a12;
+      --correct-color: #4CAF50;
+      --wrong-color: #F44336;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      /* iOS 動態島與底部 Bar 安全區域適配 */
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      font-size: 16px;
+    }
+
+    header {
+      position: relative;
+      text-align: center;
+      padding: 15px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    h1 { font-size: 20px; }
+
+    .btn {
+      background-color: var(--btn-bg);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    .btn:active { opacity: 0.7; }
+
+    .header-btn {
+      position: absolute;
+      right: 15px;
+      top: 10px;
+      padding: 5px 10px;
+      font-size: 14px;
+    }
+
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .section { margin-bottom: 20px; }
+    .section-title { font-weight: bold; margin-bottom: 10px; font-size: 18px; }
+    
+    .checkbox-group label {
+      display: inline-block;
+      margin-right: 15px;
+      margin-bottom: 10px;
+    }
+
+    input[type="number"], input[type="range"], input[type="text"] {
+      background: transparent;
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+      padding: 8px;
+      border-radius: 5px;
+      width: 100%;
+      margin-top: 5px;
+    }
+
+    input[type="range"] { padding: 0; }
+    
+    .range-val { display: inline-block; margin-left: 10px; width: 40px; }
+
+    .action-btns {
+      display: flex;
+      gap: 10px;
+      margin-top: 30px;
+    }
+    .action-btns .btn { flex: 1; text-align: center; }
+
+    /* 彈窗樣式 */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--bg-color);
+      z-index: 100;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      flex-direction: column;
+    }
+    .modal-content {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .modal-actions {
+      padding: 15px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* 考場模式 */
+    #quiz-view { display: none; height: 100%; flex-direction: column; }
+    .progress-bar { width: 100%; height: 5px; background: #333; margin-top: 5px;}
+    .progress-fill { height: 100%; background: var(--border-color); width: 0%; transition: width 0.3s; }
+    .quiz-header { padding: 10px 20px; text-align: center; border-bottom: 1px solid #333; }
+    .question-container { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
+    .question-text { font-size: 24px; margin-bottom: 30px; }
+    .options-grid { display: grid; grid-template-columns: 1fr; gap: 15px; width: 100%; }
+    .option-btn { padding: 15px; font-size: 18px; text-align: left; background: var(--btn-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 8px; }
+    .option-btn.correct { background-color: var(--correct-color); color: white; border-color: var(--correct-color); }
+    .option-btn.wrong { background-color: var(--wrong-color); color: white; border-color: var(--wrong-color); }
+    
+    /* 收藏清單項目 */
+    .list-item { border: 1px solid #333; padding: 10px; margin-bottom: 10px; border-radius: 5px; display: flex; align-items: center; justify-content: space-between;}
+    .list-item-text { flex: 1; font-size: 14px;}
+  </style>
+</head>
+<body>
+
+  <!-- 主頁面 -->
+  <div id="main-view">
+    <header>
+      <h1>日檢自修室</h1>
+      <button class="btn header-btn" onclick="openFavorites()">收藏</button>
+    </header>
+    <main>
+      <div class="section">
+        <div class="section-title">選擇級別</div>
+        <div class="checkbox-group" id="level-group">
+          <label><input type="checkbox" value="收藏"> 收藏</label>
+          <label><input type="checkbox" value="N3" checked> N3</label>
+          <label><input type="checkbox" value="N2" checked> N2</label>
+          <label><input type="checkbox" value="N1" checked> N1</label>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">選擇題型</div>
+        <div class="checkbox-group" id="qtype-group">
+          <label><input type="checkbox" value="拼音" checked> 拼音</label>
+          <label><input type="checkbox" value="中翻日" checked> 中翻日</label>
+          <label><input type="checkbox" value="日翻中" checked> 日翻中</label>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">選擇題目數量</div>
+        <input type="number" id="q-count" value="10" min="1">
+      </div>
+      <div class="section">
+        <div class="section-title">選擇字卡數量範圍</div>
+        <input type="range" id="pool-size" min="10" max="105" step="5" value="50" oninput="updatePoolLabel(this.value)">
+        <span class="range-val" id="pool-label">50</span>
+      </div>
+      <div class="section">
+        <div class="section-title">選擇練習類別</div>
+        <div class="checkbox-group" id="ctype-group">
+          <label><input type="checkbox" value="單字" checked> 單字</label>
+          <label><input type="checkbox" value="語彙" checked> 語彙</label>
+          <label><input type="checkbox" value="文法" checked> 文法</label>
+        </div>
+      </div>
+      <div class="action-btns">
+        <button class="btn" onclick="openAddCard()">新增字卡</button>
+        <button class="btn" onclick="startQuiz()">開始練習</button>
+      </div>
+    </main>
+  </div>
+
+  <!-- 考場模式 -->
+  <div id="quiz-view">
+    <div class="quiz-header">
+      <div id="quiz-status">剩餘 -- 題</div>
+      <div id="timer-text">10s</div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    </div>
+    <div class="question-container">
+      <div class="question-text" id="question-text">題目載入中...</div>
+      <div class="options-grid" id="options-grid"></div>
+    </div>
+  </div>
+
+  <!-- 結算模式 -->
+  <div id="result-view" class="modal">
+    <header><h1>測驗結算</h1></header>
+    <div class="modal-content">
+      <h2 id="result-score" style="text-align: center; margin-bottom: 20px;"></h2>
+      <div class="section-title">重點錯誤題目 (勾選加入收藏)</div>
+      <div id="wrong-list"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="saveResultAndExit()">確定並回主頁</button>
+    </div>
+  </div>
+
+  <!-- 新增字卡彈窗 -->
+  <div id="add-modal" class="modal">
+    <header><h1>新增字卡</h1></header>
+    <div class="modal-content">
+      <label>級別 (必填)<input type="text" id="add-lvl" placeholder="例如：N1"></label><br><br>
+      <label>日文名稱 (選填)<input type="text" id="add-jp" placeholder="例如：躊躇う"></label><br><br>
+      <label>日文拼音 (必填)<input type="text" id="add-kana" placeholder="例如：ためらう"></label><br><br>
+      <label>類別 (必填)<input type="text" id="add-type" placeholder="例如：動詞"></label><br><br>
+      <label>中文意思 (必填)<input type="text" id="add-zh" placeholder="例如：躊躇、猶豫"></label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('add-modal')">取消</button>
+      <button class="btn" onclick="saveNewCard()">儲存</button>
+    </div>
+  </div>
+
+  <!-- 收藏清單彈窗 -->
+  <div id="fav-modal" class="modal">
+    <header><h1>收藏清單</h1></header>
+    <div class="modal-content" id="fav-list"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="toggleAllFav(true)">全選</button>
+      <button class="btn" onclick="toggleAllFav(false)">取消全選</button>
+      <button class="btn" onclick="applyFavChanges()">確定變更</button>
+    </div>
+  </div>
+
+  <script>
+    // 資料儲存與全域變數
+    let allCards = [];
+    let customCards = JSON.parse(localStorage.getItem('customCards')) || [];
+    let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+    
+    let quizQuestions = [];
+    let currentQIndex = 0;
+    let correctCount = 0;
+    let wrongCards = [];
+    let timerInterval;
+    let timeLeft = 10;
+    let isAnswering = false;
+
+    // PWA Service Worker 註冊
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+
+    // 啟動時讀取基礎題庫
+    window.onload = async () => {
+      try {
+        const res = await fetch('./base_words.csv');
+        const text = await res.text();
+        parseCSV(text);
+      } catch (e) {
+        console.log("無法讀取 base_words.csv，可能在無伺服器環境執行");
+      }
+    };
+
+    function parseCSV(text) {
+      const lines = text.split('\n').filter(l => l.trim() !== '');
+      const baseCards = [];
+      for (let i = 1; i < lines.length; i++) {
+        // 處理引號內的逗號
+        const row = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+        if(row && row.length >= 5) {
+          baseCards.push({
+            lvl: row[0].replace(/"/g, ''),
+            jp: row[1].replace(/"/g, ''),
+            kana: row[2].replace(/"/g, ''),
+            type: row[3].replace(/"/g, ''),
+            zh: row[4].replace(/"/g, '')
+          });
+        }
+      }
+      allCards = [...baseCards, ...customCards];
+    }
+
+    // 輔助：生成唯一ID
+    function getCardId(c) { return `${c.lvl}_${c.kana}_${c.zh}`; }
+
+    // UI 控制
+    function updatePoolLabel(val) {
+      document.getElementById('pool-label').innerText = val > 100 ? 'MAX' : val;
+    }
+
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+    function openAddCard() { openModal('add-modal'); }
+
+    function saveNewCard() {
+      const lvl = document.getElementById('add-lvl').value.trim();
+      const jp = document.getElementById('add-jp').value.trim();
+      const kana = document.getElementById('add-kana').value.trim();
+      const type = document.getElementById('add-type').value.trim();
+      const zh = document.getElementById('add-zh').value.trim();
+
+      if(!lvl || !kana || !type || !zh) { alert('除日文名稱外皆為必填'); return; }
+
+      const newCard = { lvl, jp, kana, type, zh };
+      customCards.push(newCard);
+      allCards.push(newCard);
+      localStorage.setItem('customCards', JSON.stringify(customCards));
+      closeModal('add-modal');
+      alert('新增成功');
+      
+      // 清空輸入
+      ['add-lvl','add-jp','add-kana','add-type','add-zh'].forEach(id => document.getElementById(id).value = '');
+    }
+
+    function openFavorites() {
+      const listDiv = document.getElementById('fav-list');
+      listDiv.innerHTML = '';
+      favorites.forEach((c, idx) => {
+        listDiv.innerHTML += `
+          <div class="list-item">
+            <div class="list-item-text">[${c.lvl}] ${c.jp || c.kana} - ${c.zh}</div>
+            <input type="checkbox" class="fav-check" data-idx="${idx}" checked>
+          </div>
+        `;
+      });
+      openModal('fav-modal');
+    }
+
+    function toggleAllFav(state) {
+      document.querySelectorAll('.fav-check').forEach(cb => cb.checked = state);
+    }
+
+    function applyFavChanges() {
+      const checks = document.querySelectorAll('.fav-check');
+      const newFavs = [];
+      checks.forEach(cb => {
+        if(cb.checked) newFavs.push(favorites[cb.getAttribute('data-idx')]);
+      });
+      favorites = newFavs;
+      localStorage.setItem('favorites', JSON.stringify(favorites));
+      closeModal('fav-modal');
+    }
+
+    // 測驗邏輯
+    function startQuiz() {
+      const getCheckedValues = (id) => Array.from(document.querySelectorAll(`#${id} input:checked`)).map(cb => cb.value);
+      
+      const levels = getCheckedValues('level-group');
+      const qTypes = getCheckedValues('qtype-group');
+      const cTypes = getCheckedValues('ctype-group');
+      let qCount = parseInt(document.getElementById('q-count').value);
+      let poolSize = document.getElementById('pool-size').value;
+      
+      if(levels.length===0 || qTypes.length===0 || cTypes.length===0 || isNaN(qCount)) {
+        alert('請確保勾選所有必要選項'); return;
+      }
+
+      // 篩選字卡池
+      let filteredPool = allCards.filter(c => {
+        const matchLevel = levels.includes(c.lvl) || (levels.includes('收藏') && favorites.some(f => getCardId(f) === getCardId(c)));
+        const matchType = cTypes.some(ct => c.type.includes(ct)); // 包含比對以防複數詞性
+        return matchLevel && matchType;
+      });
+
+      // 去重 (針對收藏與一般級別重疊)
+      const uniquePool = [];
+      const seenIds = new Set();
+      for(const c of filteredPool) {
+        const id = getCardId(c);
+        if(!seenIds.has(id)) { seenIds.add(id); uniquePool.push(c); }
+      }
+      filteredPool = uniquePool;
+
+      if(filteredPool.length === 0) { alert('符合條件的字卡為0，請調整範圍'); return; }
+
+      // 亂數抽取 Pool Size
+      shuffleArray(filteredPool);
+      if(poolSize <= 100 && poolSize < filteredPool.length) {
+        filteredPool = filteredPool.slice(0, poolSize);
+      }
+
+      // 產生題目
+      quizQuestions = [];
+      wrongCards = [];
+      for(let i=0; i<qCount; i++) {
+        // 從 Pool 中隨機挑一張作為正解
+        const correctCard = filteredPool[Math.floor(Math.random() * filteredPool.length)];
+        
+        // 決定這題題型
+        let availableTypes = [...qTypes];
+        if(!correctCard.jp) availableTypes = availableTypes.filter(t => t !== '拼音');
+        if(availableTypes.length === 0) {
+          i--; continue; // 若此卡無法產生題型，重抽
+        }
+        
+        const qType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+        const questionObj = buildQuestion(correctCard, qType, filteredPool);
+        quizQuestions.push(questionObj);
+      }
+
+      if(quizQuestions.length === 0) { alert('無法產生足夠題目，可能因為拼音題型遇到無漢字字卡'); return; }
+
+      // 初始化狀態並切換 UI
+      document.getElementById('main-view').style.display = 'none';
+      document.getElementById('quiz-view').style.display = 'flex';
+      currentQIndex = 0;
+      correctCount = 0;
+      loadNextQuestion();
+    }
+
+    function buildQuestion(card, type, pool) {
+      let qText = '', correctAns = '', distractorField = '';
+      
+      if(type === '拼音') {
+        qText = `【拼音】${card.jp}`; correctAns = card.kana; distractorField = 'kana';
+      } else if(type === '中翻日') {
+        qText = `【中翻日】${card.zh}`; correctAns = card.jp || card.kana; distractorField = 'jpOrKana';
+      } else if(type === '日翻中') {
+        qText = `【日翻中】${card.jp || card.kana}`; correctAns = card.zh; distractorField = 'zh';
+      }
+
+      // 尋找干擾項
+      let distractors = pool.filter(c => getCardId(c) !== getCardId(card)).map(c => {
+        if(distractorField === 'jpOrKana') return c.jp || c.kana;
+        return c[distractorField];
+      });
+      
+      // 去除重複與空值
+      distractors = [...new Set(distractors.filter(d => d && d !== correctAns))];
+      
+      // 拼音相似度(以長度為基準的簡單篩選)
+      if(type === '拼音' && distractors.length > 3) {
+        const lengthMatch = distractors.filter(d => d.length === correctAns.length);
+        if(lengthMatch.length >= 3) distractors = lengthMatch;
+      }
+
+      shuffleArray(distractors);
+      let options = [correctAns];
+      while(options.length < 4) {
+        if(distractors.length > 0) options.push(distractors.pop());
+        else options.push('n/a');
+      }
+
+      shuffleArray(options);
+
+      return {
+        card: card,
+        type: type,
+        qText: qText,
+        options: options,
+        correctIdx: options.indexOf(correctAns)
+      };
+    }
+
+    function loadNextQuestion() {
+      if(currentQIndex >= quizQuestions.length) { showResult(); return; }
+      
+      isAnswering = false;
+      const q = quizQuestions[currentQIndex];
+      document.getElementById('question-text').innerText = q.qText;
+      document.getElementById('quiz-status').innerText = `剩餘 ${quizQuestions.length - currentQIndex} 題`;
+      
+      const grid = document.getElementById('options-grid');
+      grid.innerHTML = '';
+      q.options.forEach((opt, idx) => {
+        grid.innerHTML += `<button class="option-btn" onclick="selectOption(${idx})">${opt}</button>`;
+      });
+
+      const progress = ((currentQIndex) / quizQuestions.length) * 100;
+      document.getElementById('progress-fill').style.width = `${progress}%`;
+
+      startTimer();
+    }
+
+    function startTimer() {
+      clearInterval(timerInterval);
+      timeLeft = 10;
+      document.getElementById('timer-text').innerText = `${timeLeft}s`;
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        document.getElementById('timer-text').innerText = `${timeLeft}s`;
+        if(timeLeft <= 0) {
+          clearInterval(timerInterval);
+          handleTimeOut();
+        }
+      }, 1000);
+    }
+
+    function handleTimeOut() {
+      if(isAnswering) return;
+      isAnswering = true;
+      const q = quizQuestions[currentQIndex];
+      wrongCards.push(q.card);
+      const btns = document.querySelectorAll('.option-btn');
+      btns[q.correctIdx].classList.add('correct');
+      setTimeout(() => { currentQIndex++; loadNextQuestion(); }, 1500);
+    }
+
+    function selectOption(idx) {
+      if(isAnswering) return;
+      isAnswering = true;
+      clearInterval(timerInterval);
+      
+      const q = quizQuestions[currentQIndex];
+      const btns = document.querySelectorAll('.option-btn');
+      
+      if(idx === q.correctIdx) {
+        correctCount++;
+        btns[idx].classList.add('correct');
+      } else {
+        wrongCards.push(q.card);
+        btns[idx].classList.add('wrong');
+        btns[q.correctIdx].classList.add('correct');
+      }
+
+      setTimeout(() => { currentQIndex++; loadNextQuestion(); }, 1000);
+    }
+
+    function showResult() {
+      document.getElementById('quiz-view').style.display = 'none';
+      const resultRate = Math.round((correctCount / quizQuestions.length) * 100);
+      document.getElementById('result-score').innerText = `正解率: ${resultRate}% (${correctCount}/${quizQuestions.length})`;
+      
+      // 去重錯題
+      const uniqueWrong = [];
+      const seen = new Set();
+      wrongCards.forEach(c => {
+        const id = getCardId(c);
+        if(!seen.has(id)) { seen.add(id); uniqueWrong.push(c); }
+      });
+
+      const listDiv = document.getElementById('wrong-list');
+      listDiv.innerHTML = '';
+      uniqueWrong.forEach((c, idx) => {
+        // 判斷是否已在收藏中
+        const isFav = favorites.some(f => getCardId(f) === getCardId(c));
+        listDiv.innerHTML += `
+          <div class="list-item">
+            <div class="list-item-text">[${c.lvl}] ${c.jp || c.kana} - ${c.zh}</div>
+            <input type="checkbox" class="result-fav-check" data-idx="${idx}" ${isFav ? 'checked' : 'checked'}>
+          </div>
+        `;
+      });
+      
+      // 將 uniqueWrong 存為全域以供儲存
+      window.currentWrongCards = uniqueWrong;
+      openModal('result-view');
+    }
+
+    function saveResultAndExit() {
+      const checks = document.querySelectorAll('.result-fav-check');
+      checks.forEach(cb => {
+        const card = window.currentWrongCards[cb.getAttribute('data-idx')];
+        const isChecked = cb.checked;
+        const existsIdx = favorites.findIndex(f => getCardId(f) === getCardId(card));
+        
+        if(isChecked && existsIdx === -1) {
+          favorites.push(card);
+        } else if(!isChecked && existsIdx !== -1) {
+          favorites.splice(existsIdx, 1);
+        }
+      });
+      localStorage.setItem('favorites', JSON.stringify(favorites));
+      closeModal('result-view');
+      document.getElementById('main-view').style.display = 'block';
+    }
+
+    // 工具函數：陣列亂序
+    function shuffleArray(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+  </script>
+</body>
+</html>
