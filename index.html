@@ -25,7 +25,6 @@
     body {
       background-color: var(--bg-color);
       color: var(--text-color);
-      /* iOS 動態島與底部 Bar 安全區域適配 */
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
       padding-left: env(safe-area-inset-left);
@@ -35,6 +34,15 @@
       height: 100vh;
       overflow: hidden;
       font-size: 16px;
+    }
+
+    /* 動態特效定義 */
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in {
+      animation: fadeSlideIn 0.3s ease-out forwards;
     }
 
     header {
@@ -54,17 +62,27 @@
       border-radius: 8px;
       cursor: pointer;
       font-size: 16px;
+      transition: transform 0.1s ease, background-color 0.2s ease, opacity 0.2s ease;
     }
 
-    .btn:active { opacity: 0.7; }
+    /* 按鈕點擊特效 */
+    .btn:active {
+      transform: scale(0.95);
+      opacity: 0.8;
+      background-color: #331525;
+    }
 
-    .header-btn {
+    .header-btn, .header-btn-left {
       position: absolute;
-      right: 15px;
       top: 10px;
       padding: 5px 10px;
       font-size: 14px;
     }
+    
+    .header-btn { right: 15px; }
+    .header-btn-left { left: 15px; }
+
+    #main-view { display: flex; flex-direction: column; height: 100%; }
 
     main {
       flex: 1;
@@ -89,18 +107,24 @@
       border-radius: 5px;
       width: 100%;
       margin-top: 5px;
+      transition: border-color 0.2s;
+    }
+
+    input[type="text"]:focus, input[type="number"]:focus {
+      outline: none;
+      border-color: #fff;
     }
 
     input[type="range"] { padding: 0; }
-    
     .range-val { display: inline-block; margin-left: 10px; width: 40px; }
 
     .action-btns {
       display: flex;
+      flex-wrap: wrap;
       gap: 10px;
       margin-top: 30px;
     }
-    .action-btns .btn { flex: 1; text-align: center; }
+    .action-btns .btn { flex: 1 1 45%; text-align: center; }
 
     /* 彈窗樣式 */
     .modal {
@@ -123,12 +147,14 @@
       border-top: 1px solid var(--border-color);
       display: flex;
       justify-content: space-between;
+      gap: 10px;
     }
+    .modal-actions .btn { flex: 1; }
 
     /* 考場模式 */
     #quiz-view { display: none; height: 100%; flex-direction: column; }
     .progress-bar { width: 100%; height: 5px; background: #333; margin-top: 5px;}
-    .progress-fill { height: 100%; background: var(--border-color); width: 0%; transition: width 0.3s; }
+    .progress-fill { height: 100%; background: var(--border-color); width: 0%; transition: width 0.3s ease; }
     .quiz-header { padding: 10px 20px; text-align: center; border-bottom: 1px solid #333; }
     .question-container { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
     .question-text { font-size: 24px; margin-bottom: 30px; }
@@ -137,7 +163,7 @@
     .option-btn.correct { background-color: var(--correct-color); color: white; border-color: var(--correct-color); }
     .option-btn.wrong { background-color: var(--wrong-color); color: white; border-color: var(--wrong-color); }
     
-    /* 收藏清單項目 */
+    /* 清單項目 */
     .list-item { border: 1px solid #333; padding: 10px; margin-bottom: 10px; border-radius: 5px; display: flex; align-items: center; justify-content: space-between;}
     .list-item-text { flex: 1; font-size: 14px;}
   </style>
@@ -145,8 +171,9 @@
 <body>
 
   <!-- 主頁面 -->
-  <div id="main-view">
+  <div id="main-view" class="fade-in">
     <header>
+      <button class="btn header-btn-left" onclick="openCardList()">字卡清單</button>
       <h1>日檢自修室</h1>
       <button class="btn header-btn" onclick="openFavorites()">收藏</button>
     </header>
@@ -188,6 +215,7 @@
       <div class="action-btns">
         <button class="btn" onclick="openAddCard()">新增字卡</button>
         <button class="btn" onclick="startQuiz()">開始練習</button>
+        <button class="btn" onclick="exportCSV()" style="flex-basis: 100%;">匯出 CSV 備份</button>
       </div>
     </main>
   </div>
@@ -199,7 +227,7 @@
       <div id="timer-text">10s</div>
       <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
     </div>
-    <div class="question-container">
+    <div class="question-container fade-in" id="question-container">
       <div class="question-text" id="question-text">題目載入中...</div>
       <div class="options-grid" id="options-grid"></div>
     </div>
@@ -240,13 +268,21 @@
     <div class="modal-content" id="fav-list"></div>
     <div class="modal-actions">
       <button class="btn" onclick="toggleAllFav(true)">全選</button>
-      <button class="btn" onclick="toggleAllFav(false)">取消全選</button>
-      <button class="btn" onclick="applyFavChanges()">確定變更</button>
+      <button class="btn" onclick="toggleAllFav(false)">取消</button>
+      <button class="btn" onclick="applyFavChanges()">確定</button>
+    </div>
+  </div>
+
+  <!-- 總字卡清單彈窗 -->
+  <div id="list-modal" class="modal">
+    <header><h1>字卡清單 (全)</h1></header>
+    <div class="modal-content" id="all-card-list"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('list-modal')" style="flex-basis: 100%;">關閉</button>
     </div>
   </div>
 
   <script>
-    // 資料儲存與全域變數
     let allCards = [];
     let customCards = JSON.parse(localStorage.getItem('customCards')) || [];
     let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
@@ -259,19 +295,18 @@
     let timeLeft = 10;
     let isAnswering = false;
 
-    // PWA Service Worker 註冊
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js');
     }
 
-    // 啟動時讀取基礎題庫
     window.onload = async () => {
       try {
         const res = await fetch('./base_words.csv');
         const text = await res.text();
         parseCSV(text);
       } catch (e) {
-        console.log("無法讀取 base_words.csv，可能在無伺服器環境執行");
+        console.log("無法讀取 base_words.csv，以現有儲存資料為主");
+        allCards = [...customCards];
       }
     };
 
@@ -279,12 +314,11 @@
       const lines = text.split('\n').filter(l => l.trim() !== '');
       const baseCards = [];
       for (let i = 1; i < lines.length; i++) {
-        // 處理引號內的逗號
         const row = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
         if(row && row.length >= 5) {
           baseCards.push({
             lvl: row[0].replace(/"/g, ''),
-            jp: row[1].replace(/"/g, ''),
+            jp: row[1] ? row[1].replace(/"/g, '') : '',
             kana: row[2].replace(/"/g, ''),
             type: row[3].replace(/"/g, ''),
             zh: row[4].replace(/"/g, '')
@@ -294,15 +328,30 @@
       allCards = [...baseCards, ...customCards];
     }
 
-    // 輔助：生成唯一ID
     function getCardId(c) { return `${c.lvl}_${c.kana}_${c.zh}`; }
 
-    // UI 控制
     function updatePoolLabel(val) {
       document.getElementById('pool-label').innerText = val > 100 ? 'MAX' : val;
     }
 
-    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    // 視圖與彈窗切換，加入重繪邏輯以觸發 CSS 動畫
+    function switchView(hideId, showId) {
+      document.getElementById(hideId).style.display = 'none';
+      const showEl = document.getElementById(showId);
+      showEl.style.display = 'flex';
+      showEl.classList.remove('fade-in');
+      void showEl.offsetWidth; 
+      showEl.classList.add('fade-in');
+    }
+
+    function openModal(id) { 
+      const el = document.getElementById(id);
+      el.style.display = 'flex'; 
+      el.classList.remove('fade-in');
+      void el.offsetWidth;
+      el.classList.add('fade-in');
+    }
+
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
     function openAddCard() { openModal('add-modal'); }
 
@@ -322,7 +371,6 @@
       closeModal('add-modal');
       alert('新增成功');
       
-      // 清空輸入
       ['add-lvl','add-jp','add-kana','add-type','add-zh'].forEach(id => document.getElementById(id).value = '');
     }
 
@@ -355,7 +403,46 @@
       closeModal('fav-modal');
     }
 
-    // 測驗邏輯
+    function openCardList() {
+      const listDiv = document.getElementById('all-card-list');
+      listDiv.innerHTML = '';
+      allCards.forEach(c => {
+        listDiv.innerHTML += `
+          <div class="list-item">
+            <div class="list-item-text">[${c.lvl}] ${c.jp || c.kana} - ${c.zh}</div>
+          </div>
+        `;
+      });
+      openModal('list-modal');
+    }
+
+    function exportCSV() {
+      // 加入 BOM 讓 Excel 能正確辨識 UTF-8
+      let csvContent = "\uFEFF級別,日文名稱,日文拼音,類別,中文意思\n";
+      allCards.forEach(c => {
+        const formatField = (str) => {
+          if(!str) return '';
+          let s = String(str);
+          if(s.includes(',') || s.includes('"')) {
+            s = '"' + s.replace(/"/g, '""') + '"';
+          }
+          return s;
+        };
+        const row = [c.lvl, c.jp, c.kana, c.type, c.zh].map(formatField).join(',');
+        csvContent += row + "\n";
+      });
+      
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'jp_study_words.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
     function startQuiz() {
       const getCheckedValues = (id) => Array.from(document.querySelectorAll(`#${id} input:checked`)).map(cb => cb.value);
       
@@ -369,14 +456,12 @@
         alert('請確保勾選所有必要選項'); return;
       }
 
-      // 篩選字卡池
       let filteredPool = allCards.filter(c => {
         const matchLevel = levels.includes(c.lvl) || (levels.includes('收藏') && favorites.some(f => getCardId(f) === getCardId(c)));
-        const matchType = cTypes.some(ct => c.type.includes(ct)); // 包含比對以防複數詞性
+        const matchType = cTypes.some(ct => c.type.includes(ct)); 
         return matchLevel && matchType;
       });
 
-      // 去重 (針對收藏與一般級別重疊)
       const uniquePool = [];
       const seenIds = new Set();
       for(const c of filteredPool) {
@@ -387,24 +472,20 @@
 
       if(filteredPool.length === 0) { alert('符合條件的字卡為0，請調整範圍'); return; }
 
-      // 亂數抽取 Pool Size
       shuffleArray(filteredPool);
       if(poolSize <= 100 && poolSize < filteredPool.length) {
         filteredPool = filteredPool.slice(0, poolSize);
       }
 
-      // 產生題目
       quizQuestions = [];
       wrongCards = [];
       for(let i=0; i<qCount; i++) {
-        // 從 Pool 中隨機挑一張作為正解
         const correctCard = filteredPool[Math.floor(Math.random() * filteredPool.length)];
         
-        // 決定這題題型
         let availableTypes = [...qTypes];
         if(!correctCard.jp) availableTypes = availableTypes.filter(t => t !== '拼音');
         if(availableTypes.length === 0) {
-          i--; continue; // 若此卡無法產生題型，重抽
+          i--; continue; 
         }
         
         const qType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
@@ -412,13 +493,11 @@
         quizQuestions.push(questionObj);
       }
 
-      if(quizQuestions.length === 0) { alert('無法產生足夠題目，可能因為拼音題型遇到無漢字字卡'); return; }
+      if(quizQuestions.length === 0) { alert('無法產生足夠題目'); return; }
 
-      // 初始化狀態並切換 UI
-      document.getElementById('main-view').style.display = 'none';
-      document.getElementById('quiz-view').style.display = 'flex';
       currentQIndex = 0;
       correctCount = 0;
+      switchView('main-view', 'quiz-view');
       loadNextQuestion();
     }
 
@@ -433,16 +512,13 @@
         qText = `【日翻中】${card.jp || card.kana}`; correctAns = card.zh; distractorField = 'zh';
       }
 
-      // 尋找干擾項
       let distractors = pool.filter(c => getCardId(c) !== getCardId(card)).map(c => {
         if(distractorField === 'jpOrKana') return c.jp || c.kana;
         return c[distractorField];
       });
       
-      // 去除重複與空值
       distractors = [...new Set(distractors.filter(d => d && d !== correctAns))];
       
-      // 拼音相似度(以長度為基準的簡單篩選)
       if(type === '拼音' && distractors.length > 3) {
         const lengthMatch = distractors.filter(d => d.length === correctAns.length);
         if(lengthMatch.length >= 3) distractors = lengthMatch;
@@ -470,6 +546,13 @@
       if(currentQIndex >= quizQuestions.length) { showResult(); return; }
       
       isAnswering = false;
+      
+      // 觸發切題動畫
+      const container = document.getElementById('question-container');
+      container.classList.remove('fade-in');
+      void container.offsetWidth;
+      container.classList.add('fade-in');
+
       const q = quizQuestions[currentQIndex];
       document.getElementById('question-text').innerText = q.qText;
       document.getElementById('quiz-status').innerText = `剩餘 ${quizQuestions.length - currentQIndex} 題`;
@@ -535,7 +618,6 @@
       const resultRate = Math.round((correctCount / quizQuestions.length) * 100);
       document.getElementById('result-score').innerText = `正解率: ${resultRate}% (${correctCount}/${quizQuestions.length})`;
       
-      // 去重錯題
       const uniqueWrong = [];
       const seen = new Set();
       wrongCards.forEach(c => {
@@ -546,7 +628,6 @@
       const listDiv = document.getElementById('wrong-list');
       listDiv.innerHTML = '';
       uniqueWrong.forEach((c, idx) => {
-        // 判斷是否已在收藏中
         const isFav = favorites.some(f => getCardId(f) === getCardId(c));
         listDiv.innerHTML += `
           <div class="list-item">
@@ -556,7 +637,6 @@
         `;
       });
       
-      // 將 uniqueWrong 存為全域以供儲存
       window.currentWrongCards = uniqueWrong;
       openModal('result-view');
     }
@@ -576,10 +656,9 @@
       });
       localStorage.setItem('favorites', JSON.stringify(favorites));
       closeModal('result-view');
-      document.getElementById('main-view').style.display = 'block';
+      switchView('quiz-view', 'main-view');
     }
 
-    // 工具函數：陣列亂序
     function shuffleArray(array) {
       for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
