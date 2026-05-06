@@ -36,13 +36,17 @@
       font-size: 16px;
     }
 
-    /* 動態特效定義 */
     @keyframes fadeSlideIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    .fade-in {
-      animation: fadeSlideIn 0.3s ease-out forwards;
+    .fade-in { animation: fadeSlideIn 0.3s ease-out forwards; }
+
+    /* 計時器動畫 */
+    @keyframes pulseDanger {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.1); opacity: 0.8; }
+      100% { transform: scale(1); opacity: 1; }
     }
 
     header {
@@ -65,11 +69,27 @@
       transition: transform 0.1s ease, background-color 0.2s ease, opacity 0.2s ease;
     }
 
-    /* 按鈕點擊特效 */
     .btn:active {
       transform: scale(0.95);
-      opacity: 0.8;
       background-color: #331525;
+    }
+
+    .btn-large {
+      font-size: 20px;
+      padding: 15px;
+      background-color: #2b0b1a;
+      flex-basis: 100% !important;
+      font-weight: bold;
+    }
+
+    .btn-small {
+      font-size: 14px;
+      padding: 8px 12px;
+      border-color: #555;
+      color: #ccc;
+      background-color: transparent;
+      margin: 20px auto 0 auto;
+      display: block;
     }
 
     .header-btn, .header-btn-left {
@@ -78,7 +98,6 @@
       padding: 5px 10px;
       font-size: 14px;
     }
-    
     .header-btn { right: 15px; }
     .header-btn-left { left: 15px; }
 
@@ -93,7 +112,7 @@
     .section { margin-bottom: 20px; }
     .section-title { font-weight: bold; margin-bottom: 10px; font-size: 18px; }
     
-    .checkbox-group label {
+    .checkbox-group label, .radio-group label {
       display: inline-block;
       margin-right: 15px;
       margin-bottom: 10px;
@@ -107,12 +126,6 @@
       border-radius: 5px;
       width: 100%;
       margin-top: 5px;
-      transition: border-color 0.2s;
-    }
-
-    input[type="text"]:focus, input[type="number"]:focus {
-      outline: none;
-      border-color: #fff;
     }
 
     input[type="range"] { padding: 0; }
@@ -122,11 +135,10 @@
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      margin-top: 30px;
+      margin-top: 20px;
     }
     .action-btns .btn { flex: 1 1 45%; text-align: center; }
 
-    /* 彈窗樣式 */
     .modal {
       display: none;
       position: fixed;
@@ -151,21 +163,38 @@
     }
     .modal-actions .btn { flex: 1; }
 
+    /* 表單項目 */
+    .form-item { margin-bottom: 15px; }
+    .req { color: var(--wrong-color); margin-left: 3px; font-weight: bold;}
+
     /* 考場模式 */
     #quiz-view { display: none; height: 100%; flex-direction: column; }
-    .progress-bar { width: 100%; height: 5px; background: #333; margin-top: 5px;}
+    .progress-bar { width: 100%; height: 5px; background: #333; }
     .progress-fill { height: 100%; background: var(--border-color); width: 0%; transition: width 0.3s ease; }
     .quiz-header { padding: 10px 20px; text-align: center; border-bottom: 1px solid #333; }
+    
     .question-container { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
+    
+    .timer-display {
+      font-size: 48px;
+      font-weight: bold;
+      margin-bottom: 20px;
+      transition: color 0.3s ease;
+    }
+    .timer-display.danger {
+      color: var(--wrong-color);
+      animation: pulseDanger 0.8s infinite;
+    }
+
     .question-text { font-size: 24px; margin-bottom: 30px; }
     .options-grid { display: grid; grid-template-columns: 1fr; gap: 15px; width: 100%; }
     .option-btn { padding: 15px; font-size: 18px; text-align: left; background: var(--btn-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 8px; }
     .option-btn.correct { background-color: var(--correct-color); color: white; border-color: var(--correct-color); }
     .option-btn.wrong { background-color: var(--wrong-color); color: white; border-color: var(--wrong-color); }
     
-    /* 清單項目 */
     .list-item { border: 1px solid #333; padding: 10px; margin-bottom: 10px; border-radius: 5px; display: flex; align-items: center; justify-content: space-between;}
     .list-item-text { flex: 1; font-size: 14px;}
+    .edit-btn { font-size: 12px; padding: 4px 8px; margin-left: 10px; border-color: #888; color: #ccc;}
   </style>
 </head>
 <body>
@@ -214,20 +243,20 @@
       </div>
       <div class="action-btns">
         <button class="btn" onclick="openAddCard()">新增字卡</button>
-        <button class="btn" onclick="startQuiz()">開始練習</button>
-        <button class="btn" onclick="exportCSV()" style="flex-basis: 100%;">匯出 CSV 備份</button>
+        <button class="btn btn-large" onclick="startQuiz()">開始練習</button>
       </div>
+      <button class="btn btn-small" onclick="exportCSV()">匯出 CSV 備份</button>
     </main>
   </div>
 
   <!-- 考場模式 -->
   <div id="quiz-view">
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
     <div class="quiz-header">
       <div id="quiz-status">剩餘 -- 題</div>
-      <div id="timer-text">10s</div>
-      <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
     </div>
     <div class="question-container fade-in" id="question-container">
+      <div class="timer-display" id="timer-display">10</div>
       <div class="question-text" id="question-text">題目載入中...</div>
       <div class="options-grid" id="options-grid"></div>
     </div>
@@ -246,19 +275,48 @@
     </div>
   </div>
 
-  <!-- 新增字卡彈窗 -->
-  <div id="add-modal" class="modal">
-    <header><h1>新增字卡</h1></header>
+  <!-- 新增/編輯字卡彈窗 -->
+  <div id="form-modal" class="modal">
+    <header><h1 id="form-title">新增字卡</h1></header>
     <div class="modal-content">
-      <label>級別 (必填)<input type="text" id="add-lvl" placeholder="例如：N1"></label><br><br>
-      <label>日文名稱 (選填)<input type="text" id="add-jp" placeholder="例如：躊躇う"></label><br><br>
-      <label>日文拼音 (必填)<input type="text" id="add-kana" placeholder="例如：ためらう"></label><br><br>
-      <label>類別 (必填)<input type="text" id="add-type" placeholder="例如：動詞"></label><br><br>
-      <label>中文意思 (必填)<input type="text" id="add-zh" placeholder="例如：躊躇、猶豫"></label>
+      <input type="hidden" id="form-idx" value="-1">
+      
+      <div class="form-item">
+        <label>級別<span class="req">*</span></label>
+        <div class="radio-group" style="margin-top:5px;">
+          <label><input type="radio" name="form-lvl" value="N3" checked> N3</label>
+          <label><input type="radio" name="form-lvl" value="N2"> N2</label>
+          <label><input type="radio" name="form-lvl" value="N1"> N1</label>
+        </div>
+      </div>
+
+      <div class="form-item">
+        <label>類別<span class="req">*</span></label>
+        <div class="radio-group" style="margin-top:5px;">
+          <label><input type="radio" name="form-type" value="單字" checked> 單字</label>
+          <label><input type="radio" name="form-type" value="語彙"> 語彙</label>
+          <label><input type="radio" name="form-type" value="文法"> 文法</label>
+        </div>
+      </div>
+
+      <div class="form-item">
+        <label>日文名稱 (無漢字留空)</label>
+        <input type="text" id="form-jp" placeholder="例如：躊躇う">
+      </div>
+
+      <div class="form-item">
+        <label>日文拼音<span class="req">*</span></label>
+        <input type="text" id="form-kana" placeholder="例如：ためらう">
+      </div>
+
+      <div class="form-item">
+        <label>中文意思<span class="req">*</span></label>
+        <input type="text" id="form-zh" placeholder="例如：躊躇、猶豫">
+      </div>
     </div>
     <div class="modal-actions">
-      <button class="btn" onclick="closeModal('add-modal')">取消</button>
-      <button class="btn" onclick="saveNewCard()">儲存</button>
+      <button class="btn" onclick="closeModal('form-modal')">取消</button>
+      <button class="btn" onclick="saveCardForm()">儲存</button>
     </div>
   </div>
 
@@ -285,6 +343,7 @@
   <script>
     let allCards = [];
     let customCards = JSON.parse(localStorage.getItem('customCards')) || [];
+    let editedBaseCards = JSON.parse(localStorage.getItem('editedBaseCards')) || {};
     let favorites = JSON.parse(localStorage.getItem('favorites')) || [];
     
     let quizQuestions = [];
@@ -305,12 +364,11 @@
         const text = await res.text();
         parseCSV(text);
       } catch (e) {
-        console.log("無法讀取 base_words.csv，以現有儲存資料為主");
+        console.log("無法讀取 base_words.csv，以現有儲存為主");
         allCards = [...customCards];
       }
     };
 
-    // 精準 CSV 解析函式 (支援換行符號相容與引號內逗號)
     function parseCSV(text) {
       const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
       const baseCards = [];
@@ -319,34 +377,35 @@
         let row = [];
         let inQuotes = false;
         let val = '';
-        
         for (let j = 0; j < lines[i].length; j++) {
           let char = lines[i][j];
-          if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === ',' && !inQuotes) {
-            row.push(val.trim());
-            val = '';
-          } else {
-            val += char;
-          }
+          if (char === '"') inQuotes = !inQuotes;
+          else if (char === ',' && !inQuotes) { row.push(val.trim()); val = ''; }
+          else val += char;
         }
-        row.push(val.trim()); // 推入最後一欄
+        row.push(val.trim());
 
         if(row.length >= 5) {
-          baseCards.push({
+          let c = {
+            _uid: 'base_' + i,
             lvl: row[0],
             jp: row[1],
             kana: row[2],
             type: row[3],
             zh: row[4]
-          });
+          };
+          // 支援舊有動詞等詞性直接映射為單字
+          if(!['單字', '語彙', '文法'].includes(c.type)) c.type = '單字';
+          
+          // 應用本地修改紀錄
+          if(editedBaseCards[c._uid]) Object.assign(c, editedBaseCards[c._uid]);
+          baseCards.push(c);
         }
       }
       allCards = [...baseCards, ...customCards];
     }
 
-    function getCardId(c) { return `${c.lvl}_${c.kana}_${c.zh}`; }
+    function getCardId(c) { return c._uid || `${c.lvl}_${c.kana}_${c.zh}`; }
 
     function updatePoolLabel(val) {
       document.getElementById('pool-label').innerText = val > 100 ? 'MAX' : val;
@@ -368,27 +427,88 @@
       void el.offsetWidth;
       el.classList.add('fade-in');
     }
-
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
-    function openAddCard() { openModal('add-modal'); }
 
-    function saveNewCard() {
-      const lvl = document.getElementById('add-lvl').value.trim();
-      const jp = document.getElementById('add-jp').value.trim();
-      const kana = document.getElementById('add-kana').value.trim();
-      const type = document.getElementById('add-type').value.trim();
-      const zh = document.getElementById('add-zh').value.trim();
+    // 開啟新增/編輯表單
+    function openAddCard() {
+      document.getElementById('form-title').innerText = '新增字卡';
+      document.getElementById('form-idx').value = '-1';
+      document.getElementById('form-jp').value = '';
+      document.getElementById('form-kana').value = '';
+      document.getElementById('form-zh').value = '';
+      document.querySelector('input[name="form-lvl"][value="N3"]').checked = true;
+      document.querySelector('input[name="form-type"][value="單字"]').checked = true;
+      openModal('form-modal');
+    }
 
-      if(!lvl || !kana || !type || !zh) { alert('除日文名稱外皆為必填'); return; }
-
-      const newCard = { lvl, jp, kana, type, zh };
-      customCards.push(newCard);
-      allCards.push(newCard);
-      localStorage.setItem('customCards', JSON.stringify(customCards));
-      closeModal('add-modal');
-      alert('新增成功');
+    function openEditCard(idx) {
+      const c = allCards[idx];
+      document.getElementById('form-title').innerText = '編輯字卡';
+      document.getElementById('form-idx').value = idx;
+      document.getElementById('form-jp').value = c.jp;
+      document.getElementById('form-kana').value = c.kana;
+      document.getElementById('form-zh').value = c.zh;
       
-      ['add-lvl','add-jp','add-kana','add-type','add-zh'].forEach(id => document.getElementById(id).value = '');
+      const lvlRadio = document.querySelector(`input[name="form-lvl"][value="${c.lvl}"]`);
+      if(lvlRadio) lvlRadio.checked = true;
+      const typeRadio = document.querySelector(`input[name="form-type"][value="${c.type}"]`);
+      if(typeRadio) typeRadio.checked = true;
+      
+      openModal('form-modal');
+    }
+
+    function saveCardForm() {
+      const idx = parseInt(document.getElementById('form-idx').value);
+      const lvl = document.querySelector('input[name="form-lvl"]:checked').value;
+      const type = document.querySelector('input[name="form-type"]:checked').value;
+      const jp = document.getElementById('form-jp').value.trim();
+      const kana = document.getElementById('form-kana').value.trim();
+      const zh = document.getElementById('form-zh').value.trim();
+
+      if(!kana || !zh) { alert('拼音與中文意思為必填'); return; }
+
+      if(idx === -1) {
+        // 新增
+        const newCard = { _uid: 'custom_' + Date.now(), lvl, jp, kana, type, zh };
+        customCards.push(newCard);
+        allCards.push(newCard);
+        localStorage.setItem('customCards', JSON.stringify(customCards));
+        alert('新增成功');
+      } else {
+        // 編輯
+        allCards[idx].lvl = lvl;
+        allCards[idx].type = type;
+        allCards[idx].jp = jp;
+        allCards[idx].kana = kana;
+        allCards[idx].zh = zh;
+
+        const uid = allCards[idx]._uid;
+        if(uid.startsWith('custom_')) {
+          const cIdx = customCards.findIndex(c => c._uid === uid);
+          if(cIdx !== -1) customCards[cIdx] = allCards[idx];
+          localStorage.setItem('customCards', JSON.stringify(customCards));
+        } else {
+          editedBaseCards[uid] = allCards[idx];
+          localStorage.setItem('editedBaseCards', JSON.stringify(editedBaseCards));
+        }
+        alert('修改成功');
+        openCardList(); // 重新整理清單畫面
+      }
+      closeModal('form-modal');
+    }
+
+    function openCardList() {
+      const listDiv = document.getElementById('all-card-list');
+      listDiv.innerHTML = '';
+      allCards.forEach((c, idx) => {
+        listDiv.innerHTML += `
+          <div class="list-item">
+            <div class="list-item-text">[${c.lvl}] [${c.type}] ${c.jp || c.kana} - ${c.zh}</div>
+            <button class="btn edit-btn" onclick="openEditCard(${idx})">編輯</button>
+          </div>
+        `;
+      });
+      openModal('list-modal');
     }
 
     function openFavorites() {
@@ -418,19 +538,6 @@
       favorites = newFavs;
       localStorage.setItem('favorites', JSON.stringify(favorites));
       closeModal('fav-modal');
-    }
-
-    function openCardList() {
-      const listDiv = document.getElementById('all-card-list');
-      listDiv.innerHTML = '';
-      allCards.forEach(c => {
-        listDiv.innerHTML += `
-          <div class="list-item">
-            <div class="list-item-text">[${c.lvl}] ${c.jp || c.kana} - ${c.zh}</div>
-          </div>
-        `;
-      });
-      openModal('list-modal');
     }
 
     function exportCSV() {
@@ -474,7 +581,7 @@
 
       let filteredPool = allCards.filter(c => {
         const matchLevel = levels.includes(c.lvl) || (levels.includes('收藏') && favorites.some(f => getCardId(f) === getCardId(c)));
-        const matchType = cTypes.some(ct => c.type.includes(ct)); 
+        const matchType = cTypes.includes(c.type); 
         return matchLevel && matchType;
       });
 
@@ -500,9 +607,7 @@
         
         let availableTypes = [...qTypes];
         if(!correctCard.jp) availableTypes = availableTypes.filter(t => t !== '拼音');
-        if(availableTypes.length === 0) {
-          i--; continue; 
-        }
+        if(availableTypes.length === 0) { i--; continue; }
         
         const qType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
         const questionObj = buildQuestion(correctCard, qType, filteredPool);
@@ -546,27 +651,24 @@
         if(distractors.length > 0) options.push(distractors.pop());
         else options.push('n/a');
       }
-
       shuffleArray(options);
 
       return {
-        card: card,
-        type: type,
-        qText: qText,
-        options: options,
-        correctIdx: options.indexOf(correctAns)
+        card: card, type: type, qText: qText, options: options, correctIdx: options.indexOf(correctAns)
       };
     }
 
     function loadNextQuestion() {
       if(currentQIndex >= quizQuestions.length) { showResult(); return; }
-      
       isAnswering = false;
       
       const container = document.getElementById('question-container');
       container.classList.remove('fade-in');
       void container.offsetWidth;
       container.classList.add('fade-in');
+
+      const timerEl = document.getElementById('timer-display');
+      timerEl.classList.remove('danger');
 
       const q = quizQuestions[currentQIndex];
       document.getElementById('question-text').innerText = q.qText;
@@ -587,10 +689,18 @@
     function startTimer() {
       clearInterval(timerInterval);
       timeLeft = 10;
-      document.getElementById('timer-text').innerText = `${timeLeft}s`;
+      const timerEl = document.getElementById('timer-display');
+      timerEl.innerText = timeLeft;
+      timerEl.classList.remove('danger');
+
       timerInterval = setInterval(() => {
         timeLeft--;
-        document.getElementById('timer-text').innerText = `${timeLeft}s`;
+        timerEl.innerText = timeLeft;
+        
+        if (timeLeft <= 3 && !timerEl.classList.contains('danger')) {
+          timerEl.classList.add('danger');
+        }
+
         if(timeLeft <= 0) {
           clearInterval(timerInterval);
           handleTimeOut();
@@ -647,7 +757,7 @@
         listDiv.innerHTML += `
           <div class="list-item">
             <div class="list-item-text">[${c.lvl}] ${c.jp || c.kana} - ${c.zh}</div>
-            <input type="checkbox" class="result-fav-check" data-idx="${idx}" ${isFav ? 'checked' : 'checked'}>
+            <input type="checkbox" class="result-fav-check" data-idx="${idx}" checked>
           </div>
         `;
       });
@@ -663,11 +773,8 @@
         const isChecked = cb.checked;
         const existsIdx = favorites.findIndex(f => getCardId(f) === getCardId(card));
         
-        if(isChecked && existsIdx === -1) {
-          favorites.push(card);
-        } else if(!isChecked && existsIdx !== -1) {
-          favorites.splice(existsIdx, 1);
-        }
+        if(isChecked && existsIdx === -1) favorites.push(card);
+        else if(!isChecked && existsIdx !== -1) favorites.splice(existsIdx, 1);
       });
       localStorage.setItem('favorites', JSON.stringify(favorites));
       closeModal('result-view');
