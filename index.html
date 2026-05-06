@@ -8,9 +8,9 @@
   <style>
     :root {
       --bg-color: #121212;
-      --text-color: #FF82B2;
-      --border-color: #FF82B2;
-      --btn-bg: #1a0a12;
+      --text-color: #4DD0E1; /* 水藍色 */
+      --border-color: #4DD0E1; 
+      --btn-bg: #0d1a1e;
       --correct-color: #4CAF50;
       --wrong-color: #F44336;
     }
@@ -42,7 +42,6 @@
     }
     .fade-in { animation: fadeSlideIn 0.3s ease-out forwards; }
 
-    /* 計時器動畫 */
     @keyframes pulseDanger {
       0% { transform: scale(1); opacity: 1; }
       50% { transform: scale(1.1); opacity: 0.8; }
@@ -71,13 +70,13 @@
 
     .btn:active {
       transform: scale(0.95);
-      background-color: #331525;
+      background-color: #0b252b;
     }
 
     .btn-large {
       font-size: 20px;
       padding: 15px;
-      background-color: #2b0b1a;
+      background-color: #08282f;
       flex-basis: 100% !important;
       font-weight: bold;
     }
@@ -163,11 +162,9 @@
     }
     .modal-actions .btn { flex: 1; }
 
-    /* 表單項目 */
     .form-item { margin-bottom: 15px; }
     .req { color: var(--wrong-color); margin-left: 3px; font-weight: bold;}
 
-    /* 考場模式 */
     #quiz-view { display: none; height: 100%; flex-direction: column; }
     .progress-bar { width: 100%; height: 5px; background: #333; }
     .progress-fill { height: 100%; background: var(--border-color); width: 0%; transition: width 0.3s ease; }
@@ -176,8 +173,9 @@
     .question-container { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; }
     
     .timer-display {
-      font-size: 48px;
+      font-size: 32px;
       font-weight: bold;
+      margin-top: -10px;
       margin-bottom: 20px;
       transition: color 0.3s ease;
     }
@@ -193,13 +191,12 @@
     .option-btn.wrong { background-color: var(--wrong-color); color: white; border-color: var(--wrong-color); }
     
     .list-item { border: 1px solid #333; padding: 10px; margin-bottom: 10px; border-radius: 5px; display: flex; align-items: center; justify-content: space-between;}
-    .list-item-text { flex: 1; font-size: 14px;}
-    .edit-btn { font-size: 12px; padding: 4px 8px; margin-left: 10px; border-color: #888; color: #ccc;}
+    .list-item-text { flex: 1; font-size: 14px; word-break: break-word; margin-right: 10px;}
+    .edit-btn { flex-shrink: 0; white-space: nowrap; font-size: 12px; padding: 6px 12px; border-color: #888; color: #ccc;}
   </style>
 </head>
 <body>
 
-  <!-- 主頁面 -->
   <div id="main-view" class="fade-in">
     <header>
       <button class="btn header-btn-left" onclick="openCardList()">字卡清單</button>
@@ -249,7 +246,6 @@
     </main>
   </div>
 
-  <!-- 考場模式 -->
   <div id="quiz-view">
     <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
     <div class="quiz-header">
@@ -262,7 +258,6 @@
     </div>
   </div>
 
-  <!-- 結算模式 -->
   <div id="result-view" class="modal">
     <header><h1>測驗結算</h1></header>
     <div class="modal-content">
@@ -275,7 +270,6 @@
     </div>
   </div>
 
-  <!-- 新增/編輯字卡彈窗 -->
   <div id="form-modal" class="modal">
     <header><h1 id="form-title">新增字卡</h1></header>
     <div class="modal-content">
@@ -315,12 +309,11 @@
       </div>
     </div>
     <div class="modal-actions">
-      <button class="btn" onclick="closeModal('form-modal')">取消</button>
+      <button class="btn" onclick="cancelCardForm()">取消</button>
       <button class="btn" onclick="saveCardForm()">儲存</button>
     </div>
   </div>
 
-  <!-- 收藏清單彈窗 -->
   <div id="fav-modal" class="modal">
     <header><h1>收藏清單</h1></header>
     <div class="modal-content" id="fav-list"></div>
@@ -331,7 +324,6 @@
     </div>
   </div>
 
-  <!-- 總字卡清單彈窗 -->
   <div id="list-modal" class="modal">
     <header><h1>字卡清單 (全)</h1></header>
     <div class="modal-content" id="all-card-list"></div>
@@ -353,6 +345,7 @@
     let timerInterval;
     let timeLeft = 10;
     let isAnswering = false;
+    let isEditingFromList = false;
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js');
@@ -394,10 +387,8 @@
             type: row[3],
             zh: row[4]
           };
-          // 支援舊有動詞等詞性直接映射為單字
           if(!['單字', '語彙', '文法'].includes(c.type)) c.type = '單字';
           
-          // 應用本地修改紀錄
           if(editedBaseCards[c._uid]) Object.assign(c, editedBaseCards[c._uid]);
           baseCards.push(c);
         }
@@ -429,8 +420,8 @@
     }
     function closeModal(id) { document.getElementById(id).style.display = 'none'; }
 
-    // 開啟新增/編輯表單
     function openAddCard() {
+      isEditingFromList = false;
       document.getElementById('form-title').innerText = '新增字卡';
       document.getElementById('form-idx').value = '-1';
       document.getElementById('form-jp').value = '';
@@ -442,6 +433,8 @@
     }
 
     function openEditCard(idx) {
+      isEditingFromList = true;
+      closeModal('list-modal'); 
       const c = allCards[idx];
       document.getElementById('form-title').innerText = '編輯字卡';
       document.getElementById('form-idx').value = idx;
@@ -457,6 +450,11 @@
       openModal('form-modal');
     }
 
+    function cancelCardForm() {
+      closeModal('form-modal');
+      if (isEditingFromList) openCardList();
+    }
+
     function saveCardForm() {
       const idx = parseInt(document.getElementById('form-idx').value);
       const lvl = document.querySelector('input[name="form-lvl"]:checked').value;
@@ -468,14 +466,12 @@
       if(!kana || !zh) { alert('拼音與中文意思為必填'); return; }
 
       if(idx === -1) {
-        // 新增
         const newCard = { _uid: 'custom_' + Date.now(), lvl, jp, kana, type, zh };
         customCards.push(newCard);
         allCards.push(newCard);
         localStorage.setItem('customCards', JSON.stringify(customCards));
         alert('新增成功');
       } else {
-        // 編輯
         allCards[idx].lvl = lvl;
         allCards[idx].type = type;
         allCards[idx].jp = jp;
@@ -492,9 +488,9 @@
           localStorage.setItem('editedBaseCards', JSON.stringify(editedBaseCards));
         }
         alert('修改成功');
-        openCardList(); // 重新整理清單畫面
       }
       closeModal('form-modal');
+      if(isEditingFromList) openCardList(); 
     }
 
     function openCardList() {
@@ -602,13 +598,20 @@
 
       quizQuestions = [];
       wrongCards = [];
+      let lastCardId = null;
+
       for(let i=0; i<qCount; i++) {
-        const correctCard = filteredPool[Math.floor(Math.random() * filteredPool.length)];
-        
+        let correctCard;
+        // 防連續重複抽取邏輯
+        do {
+          correctCard = filteredPool[Math.floor(Math.random() * filteredPool.length)];
+        } while (filteredPool.length > 1 && getCardId(correctCard) === lastCardId);
+
         let availableTypes = [...qTypes];
         if(!correctCard.jp) availableTypes = availableTypes.filter(t => t !== '拼音');
         if(availableTypes.length === 0) { i--; continue; }
         
+        lastCardId = getCardId(correctCard);
         const qType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
         const questionObj = buildQuestion(correctCard, qType, filteredPool);
         quizQuestions.push(questionObj);
@@ -625,12 +628,13 @@
     function buildQuestion(card, type, pool) {
       let qText = '', correctAns = '', distractorField = '';
       
+      // 移除前綴文字，直接顯示題目內容
       if(type === '拼音') {
-        qText = `【拼音】${card.jp}`; correctAns = card.kana; distractorField = 'kana';
+        qText = card.jp; correctAns = card.kana; distractorField = 'kana';
       } else if(type === '中翻日') {
-        qText = `【中翻日】${card.zh}`; correctAns = card.jp || card.kana; distractorField = 'jpOrKana';
+        qText = card.zh; correctAns = card.jp || card.kana; distractorField = 'jpOrKana';
       } else if(type === '日翻中') {
-        qText = `【日翻中】${card.jp || card.kana}`; correctAns = card.zh; distractorField = 'zh';
+        qText = card.jp || card.kana; correctAns = card.zh; distractorField = 'zh';
       }
 
       let distractors = pool.filter(c => getCardId(c) !== getCardId(card)).map(c => {
