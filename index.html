@@ -28,12 +28,11 @@
       display: flex;
       flex-direction: column;
       height: 100vh;
-      height: 100dvh; /* 解決 iOS 切換畫面時的視窗高度跳動問題 */
+      height: 100dvh; 
       overflow: hidden;
       font-size: 16px;
     }
 
-    /* 將安全區域防擋設定移至主要視窗容器內，避免切換時跑版 */
     #main-view, #quiz-view, .modal {
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
@@ -638,7 +637,6 @@
         alert('請確保勾選所有必要選項'); return;
       }
 
-      // 確認是否包含可以測驗的題型
       const hasPinyin = qTypes.includes('拼音');
       const hasZtoJ = qTypes.includes('中翻日');
       const hasJtoZ = qTypes.includes('日翻中');
@@ -648,10 +646,8 @@
       const seenIds = new Set();
       const wantsFavs = levels.includes('收藏');
 
-      // 分類篩選出收藏牌組與一般牌組，確保符合題型與類別
       allCards.forEach(c => {
          if (!cTypes.includes(c.type)) return;
-         // 檢查該單字是否具備可以考的題型（若只勾選拼音，則必須有日文名稱）
          const isTestable = (hasZtoJ || hasJtoZ) ? true : (hasPinyin && !!c.jp);
          if (!isTestable) return;
 
@@ -672,7 +668,6 @@
       shuffleArray(favPool);
       shuffleArray(regPool);
 
-      // 優先把收藏字卡放前面
       let combinedPool = [...favPool, ...regPool];
       if (poolSize <= 100 && poolSize < combinedPool.length) {
          combinedPool = combinedPool.slice(0, poolSize);
@@ -702,13 +697,13 @@
 
         let availableTypes = [...qTypes];
         if(!correctCard.jp) availableTypes = availableTypes.filter(t => t !== '拼音');
+        if(availableTypes.length === 0) { i--; continue; }
         
         const qType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
         const questionObj = buildQuestion(correctCard, qType, window.currentPool);
         quizQuestions.push(questionObj);
       }
 
-      // 將考卷題目順序打亂，避免收藏題全擠在最前面
       shuffleArray(quizQuestions);
 
       if(quizQuestions.length === 0) { alert('無法產生足夠題目'); return; }
@@ -727,13 +722,12 @@
       } else if(type === '中翻日') {
         qText = card.zh; correctAns = card.kana; distractorField = 'kana';
       } else if(type === '日翻中') {
-        qText = card.jp || card.kana; correctAns = card.zh; distractorField = 'zh';
+        qText = card.kana; correctAns = card.zh; distractorField = 'zh';
       }
 
       let sameTypeDistractors = [];
       let otherTypeDistractors = [];
 
-      // 將干擾項依照「與正解是否同類別」拆分
       pool.forEach(c => {
         if(getCardId(c) !== getCardId(card)) {
           let dValue = (distractorField === 'jpOrKana') ? (c.jp || c.kana) : c[distractorField];
@@ -747,17 +741,33 @@
       sameTypeDistractors = [...new Set(sameTypeDistractors)];
       otherTypeDistractors = [...new Set(otherTypeDistractors)];
       
-      // 拼音題或中翻日，優先尋找長度相近的同類別選項
-      if((type === '拼音' || type === '中翻日')) {
-        let lengthMatchSame = sameTypeDistractors.filter(d => d.length === correctAns.length);
-        if(lengthMatchSame.length >= 3) sameTypeDistractors = lengthMatchSame;
-      }
+      // 針對日文選項套用相似度陷阱演算法
+      if(type === '拼音' || type === '中翻日') {
+        sameTypeDistractors.sort((a, b) => {
+          let scoreA = 0, scoreB = 0;
+          if(a.length === correctAns.length) scoreA += 2;
+          if(a[0] === correctAns[0]) scoreA += 3;
+          if(a[a.length-1] === correctAns[correctAns.length-1]) scoreA += 2;
+          
+          if(b.length === correctAns.length) scoreB += 2;
+          if(b[0] === correctAns[0]) scoreB += 3;
+          if(b[b.length-1] === correctAns[correctAns.length-1]) scoreB += 2;
+          
+          return scoreB - scoreA;
+        });
 
-      shuffleArray(sameTypeDistractors);
+        if(sameTypeDistractors.length > 3) {
+          let topMatch = sameTypeDistractors.slice(0, 6);
+          shuffleArray(topMatch);
+          sameTypeDistractors = topMatch;
+        }
+      } else {
+        shuffleArray(sameTypeDistractors);
+      }
+      
       shuffleArray(otherTypeDistractors);
 
       let options = [correctAns];
-      // 優先抽取同類別的干擾項，如果不夠再從其他類別補足
       while(options.length < 4) {
         if(sameTypeDistractors.length > 0) options.push(sameTypeDistractors.pop());
         else if(otherTypeDistractors.length > 0) options.push(otherTypeDistractors.pop());
