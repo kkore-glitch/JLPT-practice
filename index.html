@@ -310,19 +310,36 @@
       }
     };
 
-function parseCSV(text) {
-      const lines = text.split('\n').filter(l => l.trim() !== '');
+    // 精準 CSV 解析函式 (支援換行符號相容與引號內逗號)
+    function parseCSV(text) {
+      const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
       const baseCards = [];
+      
       for (let i = 1; i < lines.length; i++) {
-        // 以逗號分割，但忽略引號內的逗號，且能正確保留空字串
-        const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-        if(row && row.length >= 5) {
+        let row = [];
+        let inQuotes = false;
+        let val = '';
+        
+        for (let j = 0; j < lines[i].length; j++) {
+          let char = lines[i][j];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            row.push(val.trim());
+            val = '';
+          } else {
+            val += char;
+          }
+        }
+        row.push(val.trim()); // 推入最後一欄
+
+        if(row.length >= 5) {
           baseCards.push({
-            lvl: row[0].trim().replace(/^"|"$/g, ''),
-            jp: row[1].trim().replace(/^"|"$/g, ''),
-            kana: row[2].trim().replace(/^"|"$/g, ''),
-            type: row[3].trim().replace(/^"|"$/g, ''),
-            zh: row[4].trim().replace(/^"|"$/g, '')
+            lvl: row[0],
+            jp: row[1],
+            kana: row[2],
+            type: row[3],
+            zh: row[4]
           });
         }
       }
@@ -335,7 +352,6 @@ function parseCSV(text) {
       document.getElementById('pool-label').innerText = val > 100 ? 'MAX' : val;
     }
 
-    // 視圖與彈窗切換，加入重繪邏輯以觸發 CSS 動畫
     function switchView(hideId, showId) {
       document.getElementById(hideId).style.display = 'none';
       const showEl = document.getElementById(showId);
@@ -418,7 +434,6 @@ function parseCSV(text) {
     }
 
     function exportCSV() {
-      // 加入 BOM 讓 Excel 能正確辨識 UTF-8
       let csvContent = "\uFEFF級別,日文名稱,日文拼音,類別,中文意思\n";
       allCards.forEach(c => {
         const formatField = (str) => {
@@ -548,7 +563,6 @@ function parseCSV(text) {
       
       isAnswering = false;
       
-      // 觸發切題動畫
       const container = document.getElementById('question-container');
       container.classList.remove('fade-in');
       void container.offsetWidth;
