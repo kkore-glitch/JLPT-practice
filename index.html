@@ -8,7 +8,7 @@
   <style>
     :root {
       --bg-color: #121212;
-      --text-color: #4DD0E1; /* 水藍色 */
+      --text-color: #4DD0E1; 
       --border-color: #4DD0E1; 
       --btn-bg: #0d1a1e;
       --correct-color: #4CAF50;
@@ -87,7 +87,7 @@
       border-color: #555;
       color: #ccc;
       background-color: transparent;
-      margin: 20px auto 0 auto;
+      margin: 10px auto 0 auto;
       display: block;
     }
 
@@ -242,7 +242,10 @@
         <button class="btn" onclick="openAddCard()">新增字卡</button>
         <button class="btn btn-large" onclick="startQuiz()">開始練習</button>
       </div>
-      <button class="btn btn-small" onclick="exportCSV()">匯出 CSV 備份</button>
+      <div style="margin-top: 30px; border-top: 1px solid #333; padding-top: 20px;">
+        <button class="btn btn-small" onclick="forceUpdateCloud()">更新雲端題庫</button>
+        <button class="btn btn-small" onclick="exportCSV()">匯出 CSV 備份</button>
+      </div>
     </main>
   </div>
 
@@ -361,6 +364,27 @@
         allCards = [...customCards];
       }
     };
+
+    async function forceUpdateCloud() {
+      try {
+        const res = await fetch('./base_words.csv?t=' + new Date().getTime(), { cache: 'no-store' });
+        if (!res.ok) throw new Error('Fetch failed');
+        const text = await res.text();
+        
+        if ('caches' in window) {
+          const cacheNames = await caches.keys();
+          for (const name of cacheNames) {
+            await caches.delete(name);
+          }
+        }
+        
+        parseCSV(text);
+        alert('雲端題庫更新成功！');
+        window.location.reload();
+      } catch (e) {
+        alert('更新失敗，請確認網路連線。');
+      }
+    }
 
     function parseCSV(text) {
       const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
@@ -602,7 +626,6 @@
 
       for(let i=0; i<qCount; i++) {
         let correctCard;
-        // 防連續重複抽取邏輯
         do {
           correctCard = filteredPool[Math.floor(Math.random() * filteredPool.length)];
         } while (filteredPool.length > 1 && getCardId(correctCard) === lastCardId);
@@ -628,7 +651,6 @@
     function buildQuestion(card, type, pool) {
       let qText = '', correctAns = '', distractorField = '';
       
-      // 移除前綴文字，直接顯示題目內容
       if(type === '拼音') {
         qText = card.jp; correctAns = card.kana; distractorField = 'kana';
       } else if(type === '中翻日') {
