@@ -586,6 +586,26 @@
       URL.revokeObjectURL(url);
     }
 
+    // 記錄錯題並動態追加一題
+    function recordWrongAnswer(q) {
+      wrongCards.push(q.card);
+      const uid = getCardId(q.card);
+      
+      if (!window.retestedUids.has(uid)) {
+        window.retestedUids.add(uid);
+        
+        const qTypes = Array.from(document.querySelectorAll('#qtype-group input:checked')).map(cb => cb.value);
+        let availableTypes = [...qTypes];
+        if(!q.card.jp) availableTypes = availableTypes.filter(t => t !== '拼音');
+        
+        if(availableTypes.length > 0) {
+          const qType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+          const questionObj = buildQuestion(q.card, qType, window.currentPool);
+          quizQuestions.push(questionObj); // 動態追加到題庫尾端
+        }
+      }
+    }
+
     function startQuiz() {
       const getCheckedValues = (id) => Array.from(document.querySelectorAll(`#${id} input:checked`)).map(cb => cb.value);
       
@@ -620,21 +640,33 @@
         filteredPool = filteredPool.slice(0, poolSize);
       }
 
+      window.currentPool = filteredPool; // 供追加題目時抓取干擾項
+      window.retestedUids = new Set();
       quizQuestions = [];
       wrongCards = [];
+      
+      let drawPool = [...filteredPool]; // 建立抽牌牌組
       let lastCardId = null;
 
       for(let i=0; i<qCount; i++) {
-        let correctCard;
-        do {
-          correctCard = filteredPool[Math.floor(Math.random() * filteredPool.length)];
-        } while (filteredPool.length > 1 && getCardId(correctCard) === lastCardId);
+        if (drawPool.length === 0) { // 如果牌抽光了，洗牌重填
+          drawPool = [...filteredPool];
+          shuffleArray(drawPool);
+        }
+
+        let cardIdx = 0;
+        // 防連續重複抽取
+        if (drawPool.length > 1 && getCardId(drawPool[0]) === lastCardId) {
+          cardIdx = 1;
+        }
+        
+        let correctCard = drawPool.splice(cardIdx, 1)[0]; // 抽出一張牌
+        lastCardId = getCardId(correctCard);
 
         let availableTypes = [...qTypes];
         if(!correctCard.jp) availableTypes = availableTypes.filter(t => t !== '拼音');
         if(availableTypes.length === 0) { i--; continue; }
         
-        lastCardId = getCardId(correctCard);
         const qType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
         const questionObj = buildQuestion(correctCard, qType, filteredPool);
         quizQuestions.push(questionObj);
@@ -738,9 +770,9 @@
       if(isAnswering) return;
       isAnswering = true;
       const q = quizQuestions[currentQIndex];
-      wrongCards.push(q.card);
       const btns = document.querySelectorAll('.option-btn');
       btns[q.correctIdx].classList.add('correct');
+      recordWrongAnswer(q);
       setTimeout(() => { currentQIndex++; loadNextQuestion(); }, 1500);
     }
 
@@ -756,9 +788,9 @@
         correctCount++;
         btns[idx].classList.add('correct');
       } else {
-        wrongCards.push(q.card);
         btns[idx].classList.add('wrong');
         btns[q.correctIdx].classList.add('correct');
+        recordWrongAnswer(q);
       }
 
       setTimeout(() => { currentQIndex++; loadNextQuestion(); }, 1000);
