@@ -244,7 +244,7 @@
       </div>
       <div style="margin-top: 30px; border-top: 1px solid #333; padding-top: 20px;">
         <button class="btn btn-small" onclick="forceUpdateCloud()">更新雲端題庫</button>
-        <button class="btn btn-small" onclick="exportCSV()">匯出 CSV 備份</button>
+        <button class="btn btn-small" onclick="exportCSV()">匯出新增的 CSV 備份</button>
       </div>
     </main>
   </div>
@@ -489,6 +489,19 @@
 
       if(!kana || !zh) { alert('拼音與中文意思為必填'); return; }
 
+      // 檢查是否與現有字庫中的「日文名稱」或「日文拼音」重複
+      const isConflict = allCards.some((c, i) => {
+        if (idx === i) return false; // 排除自己
+        const matchJp = jp !== '' && c.jp === jp;
+        const matchKana = c.kana === kana;
+        return matchJp || matchKana;
+      });
+
+      if (isConflict) {
+        alert('此字卡的「日文名稱」或「日文拼音」已存在於題庫中，請確認是否重複新增。');
+        return;
+      }
+
       if(idx === -1) {
         const newCard = { _uid: 'custom_' + Date.now(), lvl, jp, kana, type, zh };
         customCards.push(newCard);
@@ -561,8 +574,14 @@
     }
 
     function exportCSV() {
+      if (customCards.length === 0) {
+        alert('目前沒有本地端新增的字卡可供匯出。');
+        return;
+      }
+
       let csvContent = "\uFEFF級別,日文名稱,日文拼音,類別,中文意思\n";
-      allCards.forEach(c => {
+      // 僅匯出新增的字卡 (customCards)
+      customCards.forEach(c => {
         const formatField = (str) => {
           if(!str) return '';
           let s = String(str);
@@ -579,14 +598,13 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'jp_study_words.csv';
+      a.download = 'jp_study_custom_words.csv';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
 
-    // 記錄錯題並動態追加一題
     function recordWrongAnswer(q) {
       wrongCards.push(q.card);
       const uid = getCardId(q.card);
@@ -601,7 +619,7 @@
         if(availableTypes.length > 0) {
           const qType = availableTypes[Math.floor(Math.random() * availableTypes.length)];
           const questionObj = buildQuestion(q.card, qType, window.currentPool);
-          quizQuestions.push(questionObj); // 動態追加到題庫尾端
+          quizQuestions.push(questionObj);
         }
       }
     }
@@ -640,27 +658,26 @@
         filteredPool = filteredPool.slice(0, poolSize);
       }
 
-      window.currentPool = filteredPool; // 供追加題目時抓取干擾項
+      window.currentPool = filteredPool; 
       window.retestedUids = new Set();
       quizQuestions = [];
       wrongCards = [];
       
-      let drawPool = [...filteredPool]; // 建立抽牌牌組
+      let drawPool = [...filteredPool]; 
       let lastCardId = null;
 
       for(let i=0; i<qCount; i++) {
-        if (drawPool.length === 0) { // 如果牌抽光了，洗牌重填
+        if (drawPool.length === 0) { 
           drawPool = [...filteredPool];
           shuffleArray(drawPool);
         }
 
         let cardIdx = 0;
-        // 防連續重複抽取
         if (drawPool.length > 1 && getCardId(drawPool[0]) === lastCardId) {
           cardIdx = 1;
         }
         
-        let correctCard = drawPool.splice(cardIdx, 1)[0]; // 抽出一張牌
+        let correctCard = drawPool.splice(cardIdx, 1)[0]; 
         lastCardId = getCardId(correctCard);
 
         let availableTypes = [...qTypes];
@@ -683,10 +700,11 @@
     function buildQuestion(card, type, pool) {
       let qText = '', correctAns = '', distractorField = '';
       
+      // 中翻日：顯示中文，解答為平假名，干擾項為其他平假名
       if(type === '拼音') {
         qText = card.jp; correctAns = card.kana; distractorField = 'kana';
       } else if(type === '中翻日') {
-        qText = card.zh; correctAns = card.jp || card.kana; distractorField = 'jpOrKana';
+        qText = card.zh; correctAns = card.kana; distractorField = 'kana';
       } else if(type === '日翻中') {
         qText = card.jp || card.kana; correctAns = card.zh; distractorField = 'zh';
       }
@@ -698,7 +716,7 @@
       
       distractors = [...new Set(distractors.filter(d => d && d !== correctAns))];
       
-      if(type === '拼音' && distractors.length > 3) {
+      if((type === '拼音' || type === '中翻日') && distractors.length > 3) {
         const lengthMatch = distractors.filter(d => d.length === correctAns.length);
         if(lengthMatch.length >= 3) distractors = lengthMatch;
       }
@@ -815,7 +833,7 @@
         listDiv.innerHTML += `
           <div class="list-item">
             <div class="list-item-text">[${c.lvl}] ${c.jp || c.kana} - ${c.zh}</div>
-            <input type="checkbox" class="result-fav-check" data-idx="${idx}" checked>
+            <input type="checkbox" class="result-fav-check" data-idx="${idx}" ${isFav ? 'checked' : 'checked'}>
           </div>
         `;
       });
